@@ -1,5 +1,6 @@
 var gulp = require('gulp');
-var gutil = require('gulp-util');
+var log = require('fancy-log');
+var colors = require('ansi-colors');
 var sass = require('gulp-sass');
 var scsslint = require('gulp-scss-lint');
 var eslint = require('gulp-eslint');
@@ -48,8 +49,6 @@ gulp.task('compress-example', function () {
   ]);
 });
 
-
-
 // Style check SCSS
 gulp.task('scss-lint', function() {
   return gulp.src(['./core/**/*.scss'])
@@ -68,9 +67,9 @@ gulp.task('eslint', () => {
 
 //Compile sass into css
 gulp.task('sass', function() {
-  gulp.src('./_dev/css/main.scss')
+  return gulp.src('./_dev/css/main.scss')
   .pipe(sass({style: 'expanded'}))
-  .on('error', gutil.log)
+  .on('error', log)
   .pipe(gulp.dest('./_dev/css'))
 });
 
@@ -81,30 +80,27 @@ gulp.task('watch', function() {
 
 // Triggers Jekyll to build the website generating from the _dev folder.
 gulp.task('build-jekyll', (code) => {
-  return cp.spawn('jekyll', ['build']) 
-    .on('error', (error) => gutil.log(gutil.colors.red(error.message)))
+  return cp.spawn('bundle', ['exec', 'jekyll', 'build'])
+    .on('error', (error) => log(colors.red(error.message)))
     .on('close', code);
 });
 
 // This minifies all the javascript code into one file, to make it easier for inclusion in Jekyll.
-gulp.task('jekyll-compress', ['compress-core','compress-doc','compress-example']);
+gulp.task('jekyll-compress', gulp.parallel('compress-core','compress-doc','compress-example'));
 
 // This copies the fonts that are currently embeddedd in our core style.
 gulp.task('jekyll-fontcopy', function() {
-   gulp.src('./core/dialectics/fonts/**/*')
+   return gulp.src('./core/dialectics/fonts/**/*')
   .pipe(gulp.dest('./_dev/fonts'));
-
 });
 
 // This specifies the `CI` pipeline of style-guide. It checks the styles of CSS and JS, and then generates a
 // main.css in `_dev` folder.
-gulp.task('default', ['scss-lint','sass','eslint']);
+gulp.task('default', gulp.parallel(['scss-lint','sass','eslint']));
 
 // This commands runs through the entire CI pipeline to build a jekyll site incorporating all the latest style
 // guide elements.
-gulp.task('jekyll', function(callback){
-  sequence('default', 'jekyll-fontcopy','jekyll-compress', 'build-jekyll', callback);
-});
+gulp.task('jekyll', gulp.series('default', 'jekyll-fontcopy','jekyll-compress', 'build-jekyll'));
 
 // Bumps package and bower JSON files
 gulp.task('bump', function(){
